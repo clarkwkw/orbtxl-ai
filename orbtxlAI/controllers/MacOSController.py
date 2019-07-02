@@ -4,12 +4,15 @@ import numpy as np
 import pyautogui
 from PIL import Image
 import PIL.ImageOps
+import PIL.ImageGrab
 import pytesseract
 import cv2
+from ..GameState import GameState
 
 PROCESS_NAME = "orbt xl"
 BUNDLE_ID = "unity.Nickervision Studios.orbt xl"
 MENU_BAR_HEIGHT = 22
+SHADOW_WIDTH = 1
 DEFAULT_WINDOW_SIZE_X = 825
 DEFAULT_WINDOW_SIZE_Y = 547 - MENU_BAR_HEIGHT
 DEFAULT_WINDOW_SIZE_4x3_X = 400
@@ -37,8 +40,8 @@ def invert_image_color(image):
 
 class MacOSController:
     def __init__(self):
-        self.play_button_img = Image.open("button_images/playButton.png")
-        self.retry_button_img = Image.open("button_images/retryButton.png")
+        self.play_button_img = None
+        self.retry_button_img = None
         self.window_size_x, self.window_size_y = None, None
 
     def activate_game(self):
@@ -46,8 +49,14 @@ class MacOSController:
         tell application id "{bundle_id}" to activate
         delay 1
         tell application "System Events" to set position of window 1 of application process "{process_name}" to {{0, 0}}
-        '''.format(bundle_id=BUNDLE_ID, process_name=PROCESS_NAME)
-        p = Popen(['osascript', '-'], stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        '''.format(bundle_id=BUNDLE_ID, process_name=PROCESS_NAME) # noqa
+        p = Popen(
+            ['osascript', '-'],
+            stdin=PIPE,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True
+        )
         _, stderr = p.communicate(script)
         if len(stderr.strip()) != 0:
             raise Exception(stderr)
@@ -61,29 +70,54 @@ class MacOSController:
             get size of window 1
         end tell
         '''
-        p = Popen(['osascript', '-'], stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        p = Popen(
+            ['osascript', '-'],
+            stdin=PIPE,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True
+        )
         stdout, stderr = p.communicate(script)
         if len(stderr.strip()) != 0:
             raise Exception(stderr)
         dimensions = stdout.strip().split(',')
         try:
-            self.window_size_x, self.window_size_y = int(dimensions[0]), int(dimensions[1]) - MENU_BAR_HEIGHT
+            self.window_size_x = int(dimensions[0])
+            self.window_size_y = int(dimensions[1]) - MENU_BAR_HEIGHT
         except (IndexError, TypeError):
             raise Exception("Fail to read window size")
 
-        if self.window_size_x / self.window_size_y != 4/3:    
-            self.play_button_img = Image.open("button_images/playButton.png")
-            self.retry_button_img = Image.open("button_images/retryButton.png")
-            default_size_x, default_size_y = DEFAULT_WINDOW_SIZE_X, DEFAULT_WINDOW_SIZE_Y
+        if self.window_size_x / self.window_size_y != 4/3:
+            self.play_button_img = Image.open(
+                "orbtxlAI/button_images/playButton.png"
+            )
+            self.retry_button_img = Image.open(
+                "orbtxlAI/button_images/retryButton.png"
+            )
+            default_size_x = DEFAULT_WINDOW_SIZE_X
+            default_size_y = DEFAULT_WINDOW_SIZE_Y
         else:
-            self.play_button_img = Image.open("button_images/playButton_4x3.png")
-            self.retry_button_img = Image.open("button_images/retryButton_4x3.png")
-            default_size_x, default_size_y = DEFAULT_WINDOW_SIZE_4x3_X, DEFAULT_WINDOW_SIZE_4x3_Y
+            self.play_button_img = Image.open(
+                "orbtxlAI/button_images/playButton_4x3.png"
+            )
+            self.retry_button_img = Image.open(
+                "orbtxlAI/button_images/retryButton_4x3.png"
+            )
+            default_size_x = DEFAULT_WINDOW_SIZE_4x3_X
+            default_size_y = DEFAULT_WINDOW_SIZE_4x3_Y
 
         ratio_x = self.window_size_x/default_size_x
         ratio_y = self.window_size_y/default_size_y
-        self.play_button_img = resize_image(self.play_button_img, ratio_x, ratio_y)
-        self.retry_button_img = resize_image(self.retry_button_img, ratio_x, ratio_y)
+        self.play_button_img = resize_image(
+            self.play_button_img,
+            ratio_x,
+            ratio_y
+        )
+        self.retry_button_img = resize_image(
+            self.retry_button_img,
+            ratio_x,
+            ratio_y
+        )
 
         p.wait()
 
@@ -93,7 +127,9 @@ class MacOSController:
 
     def __get_matching_button_coor(self, image):
         try:
-            button = pyautogui.locateCenterOnScreen(image, grayscale=True, confidence=0.8)
+            button = pyautogui.locateCenterOnScreen(
+                image, grayscale=True, confidence=0.6
+            )
             return (button.x//2, button.y//2)
         except TypeError:
             return None
@@ -116,33 +152,56 @@ class MacOSController:
             time.sleep(interval)
         pyautogui.keyUp("down")
 
+    def get_game_state(self):
+        screenshot = self.capture_screenshot()
+        status_bar = screenshot.getpixel((self.window_size_x, 0))
+        if status_bar[0:3] == (229, 229, 229):
+            return GameState.RUNNING, screenshot
+
+        if self.is_on_front_page():
+            return GameState.UNINITIALIZED, screenshot
+
+        if self.is_on_gameover_page():
+            return GameState.GAME_OVER, screenshot
+
+        return GameState.UNKNOWN, screenshot
+
     def is_on_gameover_page(self):
-        return self.__get_matching_button_coor(self.retry_button_img) is not None
+        return self.__get_matching_button_coor(self.retry_button_img)\
+            is not None
 
     def is_on_front_page(self):
-        return self.__get_matching_button_coor(self.play_button_img) is not None
+        return self.__get_matching_button_coor(self.play_button_img)\
+            is not None
 
     def capture_screenshot(self):
-        return pyautogui.screenshot("sc.png", region=(
+        return PIL.ImageGrab.grab(bbox=(
             0,
-            MENU_BAR_HEIGHT*2*2,
+            MENU_BAR_HEIGHT*2*2 + SHADOW_WIDTH*2,
             self.window_size_x*2,
-            self.window_size_y*2
+            self.window_size_y*2 +
+            MENU_BAR_HEIGHT*2*2 + SHADOW_WIDTH*2
         ))
 
     def recognize_score(self):
-        score_image = pyautogui.screenshot(region=(
+        score_image = PIL.ImageGrab.grab(bbox=(
             0,
-            MENU_BAR_HEIGHT*2*2,
+            MENU_BAR_HEIGHT*2*2 + SHADOW_WIDTH*2,
             self.window_size_x*2,
-            SCORE_BOX_HEIGHT*self.window_size_y/DEFAULT_WINDOW_SIZE_4x3_Y
+            MENU_BAR_HEIGHT*2*2 + SHADOW_WIDTH*2 +
+            int(SCORE_BOX_HEIGHT*self.window_size_y/DEFAULT_WINDOW_SIZE_4x3_Y)
         ))
         score_image = invert_image_color(score_image)
 
         opencvImage = cv2.cvtColor(np.array(score_image), cv2.COLOR_RGB2BGR)    
         gray = cv2.cvtColor(opencvImage, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (7, 7), 0)
-        score_string = pytesseract.image_to_string(gray, lang="digits", config="--psm 7").strip()
+
+        score_string = pytesseract.image_to_string(
+            gray,
+            lang="digits",
+            config="--psm 7"
+        ).strip()
         if len(score_string) == 0:
             return None
         try:
