@@ -7,7 +7,7 @@ import PIL.ImageOps
 import PIL.ImageGrab
 import pytesseract
 import cv2
-from ..GameState import GameState
+from ..structs import GameState
 
 PROCESS_NAME = "orbt xl"
 BUNDLE_ID = "unity.Nickervision Studios.orbt xl"
@@ -202,9 +202,10 @@ class MacOSController:
             config="--psm 7",
             output_type='data.frame'
         )
-        
+
         try:
-            score = score_string_df.loc[score_string_df['conf'] > 90, 'text'].iloc[0]
+            score = score_string_df.loc[score_string_df['conf'] > 90, 'text']\
+                    .iloc[0]
             return score
-        except ValueError:
+        except IndexError:
             return 0
