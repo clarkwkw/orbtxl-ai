@@ -196,15 +196,15 @@ class MacOSController:
         opencvImage = cv2.cvtColor(np.array(score_image), cv2.COLOR_RGB2BGR)    
         gray = cv2.cvtColor(opencvImage, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (7, 7), 0)
-
-        score_string = pytesseract.image_to_string(
+        score_string_df = pytesseract.image_to_data(
             gray,
             lang="digits",
-            config="--psm 7"
-        ).strip()
-        if len(score_string) == 0:
-            return None
+            config="--psm 7",
+            output_type='data.frame'
+        )
+        
         try:
-            return int(score_string)
-        except TypeError:
-            return None
+            score = score_string_df.loc[score_string_df['conf'] > 90, 'text'].iloc[0]
+            return score
+        except ValueError:
+            return 0
