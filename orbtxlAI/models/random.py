@@ -1,4 +1,5 @@
 from ..GameAction import GameAction
+import random
 
 
 class RandomModel:
@@ -6,4 +7,4 @@ class RandomModel:
         pass
 
     def get_action(self, screenshot):
-        return GameAction(1)
+        return GameAction(0.7+random.random())
