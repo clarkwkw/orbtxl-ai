@@ -7,24 +7,17 @@ class Gym:
         self.__controller = controller
         self.__model = model
 
-    def start_training_session(self, n_games):
-        self.__start_session(n_games, True)
-
-    def start_demo_session(self, n_games):
-        pass
-
     def __attempt_to_get_valid_state(self, max_attempts):
         state, screenshot = None, None
         for i in range(max_attempts):
             state, screenshot = self.__controller.get_game_state()
-            print(state)
             if state != GameState.UNKNOWN:
                 return state, screenshot
             if i != max_attempts - 1:
                 time.sleep(0.5)
         return state, screenshot
 
-    def __start_session(self, n_games, is_train):
+    def start_session(self, n_games, is_train):
         self.__controller.activate_game()
         state, _ = self.__controller.get_game_state()
         if state != GameState.UNINITIALIZED:
