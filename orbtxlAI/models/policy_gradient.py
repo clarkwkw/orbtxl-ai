@@ -21,7 +21,13 @@ class PolicyGradientModel:
         self.__actions = actions
         with self.__graph.as_default() as g:
             if from_save is None:
-                self.__build_graph(g, actions, sample_shape, dropout, learning_rate)
+                self.__build_graph(
+                    g,
+                    actions,
+                    sample_shape,
+                    dropout,
+                    learning_rate
+                )
                 self.__reward_decay = reward_decay
                 self.__sess.run(tf.initializers.global_variables())
             else:
@@ -34,14 +40,18 @@ class PolicyGradientModel:
                 self.__obs = g.get_tensor_by_name("inputs/observations:0")
                 self.__acts = g.get_tensor_by_name("inputs/actions_num:0")
                 self.__vt = g.get_tensor_by_name("inputs/actions_value:0")
-                self.__a_filter = g.get_tensor_by_name(
-                    "inputs/actions_filter:0"
-                )
                 self.__all_act_prob = tf.get_collection("all_act_prob")[0]
                 self.__loss = tf.get_collection("loss")[0]
                 self.__train_op = tf.get_collection("train_op")[0]
 
-    def __build_graph(self, graph, actions, sample_shape, dropout, learning_rate):
+    def __build_graph(
+        self,
+        graph,
+        actions,
+        sample_shape,
+        dropout,
+        learning_rate
+    ):
 
         with tf.name_scope('inputs'):
             self.__obs = tf.placeholder(
@@ -52,9 +62,6 @@ class PolicyGradientModel:
             )
             self.__vt = tf.placeholder(
                 tf.float32, [None, ], name="actions_value"
-            )
-            self.__a_filter = tf.placeholder(
-                tf.float32, [None, len(actions)], name="actions_filter"
             )
 
         conv1 = tf.layers.conv2d(self.__obs, 10, 30, activation=tf.nn.relu)
