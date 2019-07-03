@@ -1,4 +1,3 @@
-from ..structs import GameAction
 import tensorflow as tf
 import numpy as np
 
@@ -12,9 +11,9 @@ class PolicyGradientModel:
         actions,
         sample_shape,
         from_save=None,
-        learning_rate=0.01,
+        learning_rate=0.05,
         dropout=0.2,
-        reward_decay=0.95
+        reward_decay=0.9
     ):
         self.__graph = tf.Graph()
         self.__sess = tf.Session(graph=self.__graph)
@@ -55,7 +54,7 @@ class PolicyGradientModel:
 
         with tf.name_scope('inputs'):
             self.__obs = tf.placeholder(
-                tf.float32, [None] + sample_shape + [4], name="observations"
+                tf.float32, [None] + sample_shape + [1], name="observations"
             )
             self.__acts = tf.placeholder(
                 tf.int32, [None, ], name="actions_num"
@@ -64,7 +63,7 @@ class PolicyGradientModel:
                 tf.float32, [None, ], name="actions_value"
             )
 
-        conv1 = tf.layers.conv2d(self.__obs, 10, 30, activation=tf.nn.relu)
+        conv1 = tf.layers.conv2d(self.__obs, 10, 20, activation=tf.nn.relu)
         conv1 = tf.compat.v1.layers.max_pooling2d(conv1, 5, 2)
 
         conv2 = tf.layers.conv2d(conv1, 20, 10, activation=tf.nn.relu)
@@ -101,7 +100,7 @@ class PolicyGradientModel:
         prob_weights = self.__sess.run(
             self.__all_act_prob,
             feed_dict={
-                self.__obs: np.array(screenshot)[np.newaxis, :, :]
+                self.__obs: np.array(screenshot)[np.newaxis, :, :, np.newaxis]
             }
         )
         print(prob_weights)
@@ -110,7 +109,7 @@ class PolicyGradientModel:
             p=prob_weights.ravel()
         )  # select action w.r.t the actions prob
         print("action:", action)
-        return GameAction(self.__actions[action])
+        return self.__actions[action]
 
     def on_game_ended(self, game_record):
         def discount_and_norm_rewards():
@@ -138,10 +137,11 @@ class PolicyGradientModel:
         discounted_ep_rs_norm = discount_and_norm_rewards()
 
         observations = [
-            np.array(tp.screenshot) for tp in game_record.time_points
+            np.array(tp.screenshot)[:, :,  np.newaxis]
+            for tp in game_record.time_points
         ]
         actions = [
-            self.__actions.index(tp.action.press_time)
+            self.__actions.index(tp.action)
             for tp in game_record.time_points
         ]
 

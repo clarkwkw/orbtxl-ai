@@ -183,6 +183,12 @@ class MacOSController:
             MENU_BAR_HEIGHT*2*2 + SHADOW_WIDTH*2
         ))
 
+    def pause_game(self):
+        pyautogui.press("esc")
+
+    def resume_game(self):
+        pyautogui.press("esc")
+
     def recognize_score(self):
         score_image = PIL.ImageGrab.grab(bbox=(
             0,
