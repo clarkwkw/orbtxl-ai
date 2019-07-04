@@ -104,7 +104,7 @@ class WindowsController:
             button = pyautogui.locateCenterOnScreen(
                 image, grayscale=True, confidence=0.6
             )
-            return (button.x//2, button.y//2)
+            return (button.x, button.y)
         except TypeError:
             return None
 
