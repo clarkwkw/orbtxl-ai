@@ -1,7 +1,8 @@
-from orbtxlAI.controllers import MacOSController
+from orbtxlAI.controllers import Controller
 from orbtxlAI import Gym
 from orbtxlAI.models import PolicyGradientModel
 from orbtxlAI.structs import GameAction
+import argparse
 import cv2
 import numpy as np
 
@@ -13,23 +14,36 @@ def preprocess_screenshot(screenshot):
     return gray
 
 
-controller = MacOSController()
-model = PolicyGradientModel(
-    actions=[
-        GameAction(
-            press_time=0,
-            wait_time_after_press=0.5
-        ),
-        GameAction(
-            press_time=0.7,
-            wait_time_after_press=0
-        ),
-        GameAction(
-            press_time=1,
-            wait_time_after_press=0
-        )
-    ],
-    sample_shape=[480, 640]
-)
+parser = argparse.ArgumentParser()
+parser.add_argument('--new', type=bool)
+args = parser.parse_args()
+
+controller = Controller()
+if args.new:
+    model = PolicyGradientModel(
+        actions=[
+            GameAction(
+                press_time=0,
+                wait_time_after_press=0.5
+            ),
+            GameAction(
+                press_time=0.7,
+                wait_time_after_press=0
+            ),
+            GameAction(
+                press_time=1,
+                wait_time_after_press=0
+            )
+        ],
+        sample_shape=[300, 400]
+    )
+else:
+    model = PolicyGradientModel.load("traindata/")
+
 gym = Gym(controller, model, preprocess_screenshot)
-gym.start_session(1000, is_train=True)
+try:
+    gym.start_session(1, is_train=True)
+except Exception as e:
+    raise e
+finally:
+    model.save("traindata/")
