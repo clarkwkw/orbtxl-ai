@@ -174,7 +174,6 @@ class WindowsController:
 
         opencvImage = cv2.cvtColor(np.array(score_image), cv2.COLOR_RGB2BGR)
         gray = cv2.cvtColor(opencvImage, cv2.COLOR_BGR2GRAY)
-        gray = cv2.GaussianBlur(gray, (7, 7), 0)
         score_string_df = pytesseract.image_to_data(
             gray,
             lang="digits",
