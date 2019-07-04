@@ -1,4 +1,5 @@
 import win32gui
+import win32com.client
 import time
 import numpy as np
 import pyautogui
@@ -52,6 +53,8 @@ class WindowsController:
         self.__resize_button_image()
 
     def activate_game(self):
+        shell = win32com.client.Dispatch("WScript.Shell")
+        shell.SendKeys('%')
         win32gui.MoveWindow(
             self.window_handle,
             0,
