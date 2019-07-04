@@ -1,5 +1,7 @@
 import tensorflow as tf
 import numpy as np
+import json
+from ..structs import GameAction
 
 SAVE_FILE_NAME = "savefile.ckpt"
 PARAMETERS_FILE_NAME = "paras.json"
@@ -8,8 +10,8 @@ PARAMETERS_FILE_NAME = "paras.json"
 class PolicyGradientModel:
     def __init__(
         self,
-        actions,
-        sample_shape,
+        actions=[],
+        sample_shape=[],
         from_save=None,
         learning_rate=0.05,
         dropout=0.2,
@@ -17,7 +19,6 @@ class PolicyGradientModel:
     ):
         self.__graph = tf.Graph()
         self.__sess = tf.Session(graph=self.__graph)
-        self.__actions = actions
         with self.__graph.as_default() as g:
             if from_save is None:
                 self.__build_graph(
@@ -28,8 +29,18 @@ class PolicyGradientModel:
                     learning_rate
                 )
                 self.__reward_decay = reward_decay
+                self.__actions = actions
                 self.__sess.run(tf.initializers.global_variables())
             else:
+                with open(
+                    from_save.rstrip("/") + "/" + PARAMETERS_FILE_NAME, "r"
+                ) as f:
+                    d = json.load(f)
+                    self.__actions = [
+                        GameAction.deserialize(a) for a in d['actions']
+                    ]
+                    self.__reward_decay = d['reward_decay']
+
                 saver = tf.train.import_meta_graph(
                     from_save.rstrip("/") + "/" + SAVE_FILE_NAME + ".meta"
                 )
@@ -153,3 +164,29 @@ class PolicyGradientModel:
                 self.__vt: discounted_ep_rs_norm
             }
         )
+
+    def save(self, save_dir):
+        paras_dict = {
+            "reward_decay": self.__reward_decay,
+            "actions": [
+                a.serialize() for a in self.__actions
+            ]
+        }
+
+        with open(
+            save_dir.rstrip("/") + "/" + PARAMETERS_FILE_NAME, "w"
+        ) as f:
+            json.dump(paras_dict, f, indent=4)
+
+        with self.__graph.as_default() as _:
+            saver = tf.compat.v1.train.Saver()
+            saver.save(
+                self.__sess,
+                save_path=save_dir.rstrip("/")+"/"+SAVE_FILE_NAME
+            )
+        tf.compat.v1.reset_default_graph()
+
+    @classmethod
+    def load(cls, path):
+        model = cls(from_save=path)
+        return model
