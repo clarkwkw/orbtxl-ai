@@ -15,7 +15,7 @@ def preprocess_screenshot(screenshot):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--new', type=bool)
+parser.add_argument('--new',  action='store_true', default=False)
 args = parser.parse_args()
 
 controller = Controller()
