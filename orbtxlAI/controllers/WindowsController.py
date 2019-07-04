@@ -131,9 +131,10 @@ class WindowsController:
 
     def get_game_state(self):
         screenshot = self.capture_screenshot()
-        status_bar = screenshot.getpixel((self.window_size_x//2, 0))
-        if status_bar[0:3] == (229, 229, 229):
-            return GameState.RUNNING, screenshot
+        for i in range(self.window_size_x//2):
+            status_bar = screenshot.getpixel((i, 0))
+            if status_bar[0:3] == (229, 229, 229):
+                return GameState.RUNNING, screenshot
 
         if self.is_on_front_page():
             return GameState.UNINITIALIZED, screenshot
